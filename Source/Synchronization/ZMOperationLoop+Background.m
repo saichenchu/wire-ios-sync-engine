@@ -96,6 +96,8 @@ static NSString * const PushNotificationTypeNotice = @"notice";
     [self.syncMOC saveOrRollback];
     [self.syncStrategy updateBadgeCount];
     [ZMRequestAvailableNotification notifyNewRequestsAvailable:self];
+
+    [ListOrderDebugHelper logCurrentConversationListOrderInContext:self.syncMOC authorative:NO];
 }
 
 - (EventsWithIdentifier *)eventsFromPushChannelData:(NSDictionary *)userInfo
