@@ -243,6 +243,8 @@ NS_ASSUME_NONNULL_END
         Require(callKitProvider);
         Require(callController);
         Require(userSession);
+        
+        [mediaManager setUiStartsAudio:YES];
 
         self.provider = callKitProvider;
         self.callController = callController;
