@@ -130,11 +130,11 @@ struct VoiceChannelParticipantNotification {
     static let notificationName = Notification.Name("VoiceChannelParticipantNotification")
     static let userInfoKey = notificationName.rawValue
     let setChangeInfo : SetChangeInfo
-    let conversation : ZMConversation
+    let conversationId : UUID
     
     func post() {
         NotificationCenter.default.post(name: VoiceChannelParticipantNotification.notificationName,
-                                        object: conversation,
+                                        object: conversationId,
                                         userInfo: [VoiceChannelParticipantNotification.userInfoKey : self])
     }
 }

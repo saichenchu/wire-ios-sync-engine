@@ -60,8 +60,8 @@ extension CallStateObserver : WireCallCenterCallStateObserver, WireCallCenterMis
                 let userId = userId,
                 let conversation = ZMConversation(remoteID: conversationId, createIfNeeded: false, in: self.managedObjectContext),
                 let user = ZMUser(remoteID: userId, createIfNeeded: false, in: self.managedObjectContext)
-                else {
-                    return
+            else {
+                return
             }
             
             if !ZMUserSession.useCallKit {
@@ -104,7 +104,6 @@ extension CallStateObserver : WireCallCenterCallStateObserver, WireCallCenterMis
             break
         }
     }
-    
 }
 
 private final class CallingSystemMessageGenerator {

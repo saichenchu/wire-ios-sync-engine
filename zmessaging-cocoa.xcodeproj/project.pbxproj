@@ -459,6 +459,7 @@
 		F9DAC54F1C2035660001F11E /* ConversationStatusStrategyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9DAC54D1C2034E70001F11E /* ConversationStatusStrategyTests.swift */; };
 		F9E462DA1D7043C60036CFA7 /* ConversationTests+Confirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E462D91D7043C60036CFA7 /* ConversationTests+Confirmation.swift */; };
 		F9E4779F1D216467003A99AC /* ZMLocalNotificationSetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E4779D1D21640E003A99AC /* ZMLocalNotificationSetTests.swift */; };
+		F9E577211E77EC6D0065EFE4 /* WireCallCenterV3+Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E577201E77EC6D0065EFE4 /* WireCallCenterV3+Notifications.swift */; };
 		F9F631421DE3524100416938 /* TypingStrategy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F631411DE3524100416938 /* TypingStrategy.swift */; };
 		F9F631431DE3534F00416938 /* ZMTyping.h in Headers */ = {isa = PBXBuildFile; fileRef = 3E3C00C91A2358BA00D02D21 /* ZMTyping.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		F9F9F5621D75D62100AE6499 /* RequestStrategyTestBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F9F5611D75D62100AE6499 /* RequestStrategyTestBase.swift */; };
@@ -1096,6 +1097,7 @@
 		F9E3AB511BEA017300C1A6AA /* ZMSelfTranscoder+Internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "ZMSelfTranscoder+Internal.h"; sourceTree = "<group>"; };
 		F9E462D91D7043C60036CFA7 /* ConversationTests+Confirmation.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "ConversationTests+Confirmation.swift"; sourceTree = "<group>"; };
 		F9E4779D1D21640E003A99AC /* ZMLocalNotificationSetTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ZMLocalNotificationSetTests.swift; sourceTree = "<group>"; };
+		F9E577201E77EC6D0065EFE4 /* WireCallCenterV3+Notifications.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "WireCallCenterV3+Notifications.swift"; sourceTree = "<group>"; };
 		F9F11A061A0A630900F1DCEE /* ZMBlacklistVerificatorTest.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ZMBlacklistVerificatorTest.m; sourceTree = "<group>"; };
 		F9F631411DE3524100416938 /* TypingStrategy.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TypingStrategy.swift; sourceTree = "<group>"; };
 		F9F9F5611D75D62100AE6499 /* RequestStrategyTestBase.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RequestStrategyTestBase.swift; sourceTree = "<group>"; };
@@ -1333,8 +1335,7 @@
 				166A8C011E0D634700F5EEEA /* WireCallCenter.swift */,
 				BF735CF91E70003D003BC61F /* SystemMessageCallObserver.swift */,
 				F929C18D1E433FA70018ADA4 /* Calling V2 */,
-				165D3A141E1D3EF30052E654 /* WireCallCenterV3.swift */,
-				166A8BF21E015F3B00F5EEEA /* WireCallCenterV3Factory.swift */,
+				F9E5771F1E77EC560065EFE4 /* Calling V3 */,
 				165D3A3C1E1D60520052E654 /* ZMConversation+VoiceChannel.swift */,
 			);
 			path = Calling;
@@ -2161,6 +2162,16 @@
 			name = "DB Ficture 1.28";
 			sourceTree = "<group>";
 		};
+		F9E5771F1E77EC560065EFE4 /* Calling V3 */ = {
+			isa = PBXGroup;
+			children = (
+				166A8BF21E015F3B00F5EEEA /* WireCallCenterV3Factory.swift */,
+				165D3A141E1D3EF30052E654 /* WireCallCenterV3.swift */,
+				F9E577201E77EC6D0065EFE4 /* WireCallCenterV3+Notifications.swift */,
+			);
+			name = "Calling V3";
+			sourceTree = "<group>";
+		};
 		F9FD798019EE73C500D70FCD /* VersionBlacklist */ = {
 			isa = PBXGroup;
 			children = (
@@ -2662,6 +2673,7 @@
 				F98EDCD81D82B913001E65CB /* ZMLocalNotificationForMessage.swift in Sources */,
 				3EC499941A92463D003F9E32 /* ZMBackgroundFetchState.m in Sources */,
 				166A8BF91E02C7D500F5EEEA /* ZMHotFix+PendingChanges.swift in Sources */,
+				F9E577211E77EC6D0065EFE4 /* WireCallCenterV3+Notifications.swift in Sources */,
 				092083401BA95EE100F82B29 /* UserClientRequestFactory.swift in Sources */,
 				F936DB2B1C11DF40005E93AE /* ZMClientUpdateNotification.m in Sources */,
 				F9FD167C1BDFCDAD00725F5C /* ZMClientRegistrationStatus.m in Sources */,

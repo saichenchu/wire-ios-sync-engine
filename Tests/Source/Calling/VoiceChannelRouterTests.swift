@@ -81,7 +81,7 @@ class VoiceChannelRouterTests : MessagingTest {
         ZMUserSession.callingProtocolStrategy = .version3
         
         // then
-        XCTAssertTrue(sut.currentVoiceChannel === sut.v2)
+        XCTAssertTrue(sut.currentVoiceChannel === sut.v3)
     }
     
     func testCurrenVoiceChannel_oneToOne_incomingV2Call_version3Selected() {
@@ -103,7 +103,7 @@ class VoiceChannelRouterTests : MessagingTest {
         conversation?.conversationType = .oneOnOne
         
         // when
-        wireCallCenterMock?.callState = .incoming(video: false)
+        wireCallCenterMock?.callState = .incoming(video: false, shouldRing: false)
         ZMUserSession.callingProtocolStrategy = .version2
         
         // then

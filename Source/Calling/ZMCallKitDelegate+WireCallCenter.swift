@@ -82,7 +82,7 @@ extension ZMCallKitDelegate : WireCallCenterCallStateObserver, WireCallCenterMis
         }
         
         switch callState {
-        case .incoming(video: let video):
+        case .incoming(video: let video, shouldRing: _):
             guard
                 let userId = userId,
                 let user = ZMUser(remoteID: userId, createIfNeeded: false, in: userSession.managedObjectContext) else {

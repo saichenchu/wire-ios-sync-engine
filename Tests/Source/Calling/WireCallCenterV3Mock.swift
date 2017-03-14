@@ -37,17 +37,17 @@ public class WireCallCenterV3Mock : WireCallCenterV3 {
         super.init(userId: userId, clientId: clientId, registerObservers: false)
     }
     
-    override public func startCall(conversationId: UUID, video: Bool) -> Bool {
+    override public func startCall(conversationId: UUID, video: Bool, isGroup: Bool) -> Bool {
         didCallStartCall = true
         return !startCallShouldFail
     }
     
-    override public func answerCall(conversationId: UUID) -> Bool {
+    override public func answerCall(conversationId: UUID, isGroup: Bool) -> Bool {
         didCallAnswerCall = true
         return !answerCallShouldFail
     }
     
-    override public func closeCall(conversationId: UUID) {
+    override public func closeCall(conversationId: UUID, isGroup: Bool) {
         
     }
         

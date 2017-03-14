@@ -65,7 +65,7 @@ class VoiceChannelParticipantSnapshot: NSObject {
         // calculate inserts / deletes / moves
         if let newStateUpdate = state.updatedState(updated, observedObject: conversation, newSet: newParticipants) {
             state = newStateUpdate.newSnapshot
-            VoiceChannelParticipantNotification(setChangeInfo: newStateUpdate.changeInfo, conversation: conversation).post()
+            VoiceChannelParticipantNotification(setChangeInfo: newStateUpdate.changeInfo, conversationId: conversation.remoteIdentifier!).post()
         }
         activeFlowParticipantsState = (newFlowParticipants.copy() as? NSOrderedSet) ?? NSOrderedSet()
         callParticipantState = (newParticipants.copy() as? NSOrderedSet) ?? NSOrderedSet()
@@ -334,7 +334,7 @@ extension WireCallCenterV2 {
     public class func addVoiceChannelParticipantObserver(observer: VoiceChannelParticipantObserver, forConversation conversation: ZMConversation, context: NSManagedObjectContext) -> WireCallCenterObserverToken {
         context.wireCallCenterV2.createParticipantSnapshotIfNeeded(for: conversation)
         
-        return NotificationCenterObserverToken(name: VoiceChannelParticipantNotification.notificationName, object: conversation, queue: .main) {
+        return NotificationCenterObserverToken(name: VoiceChannelParticipantNotification.notificationName, object: conversation.remoteIdentifier! as NSUUID, queue: .main) {
             [weak observer] (note) in
             guard let note = note.userInfo?[VoiceChannelParticipantNotification.userInfoKey] as? VoiceChannelParticipantNotification,
                 let strongObserver = observer
