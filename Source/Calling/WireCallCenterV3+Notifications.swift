@@ -140,7 +140,10 @@ class VoiceChannelParticipantV3Snapshot {
         }
         
         activeFlowParticipantsState = callCenter.activeFlowParticipants(in: conversationId).filter{$0 != selfUserID}
-        callParticipantState = callCenter.activeParticipants(in: conversationId).filter{$0 != selfUserID}
+        // TODO Sabine : Revert changes
+//        callParticipantState = callCenter.activeParticipants(in: conversationId).filter{$0 != selfUserID}
+        callParticipantState = activeFlowParticipantsState
+        // End TODO Sabine
         state = SetSnapshot(set: NSOrderedSet(array: callParticipantState), moveType: .uiCollectionView)
         notifyInitialChange()
     }
