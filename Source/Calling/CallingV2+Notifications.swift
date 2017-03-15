@@ -134,7 +134,7 @@ struct VoiceChannelParticipantNotification {
     
     func post() {
         NotificationCenter.default.post(name: VoiceChannelParticipantNotification.notificationName,
-                                        object: conversationId,
+                                        object: nil,
                                         userInfo: [VoiceChannelParticipantNotification.userInfoKey : self])
     }
 }

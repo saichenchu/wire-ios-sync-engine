@@ -132,18 +132,15 @@ class VoiceChannelParticipantV3Snapshot {
     fileprivate let conversationId : UUID
     fileprivate let selfUserID : UUID
     
-    init(conversationId: UUID, selfUserID: UUID) {
+    init(conversationId: UUID, selfUserID: UUID, members: [CallMember]?) {
         self.conversationId = conversationId
         self.selfUserID = selfUserID
         guard let callCenter = WireCallCenterV3.activeInstance else {
             fatal("WireCallCenterV3 not accessible")
         }
         
-        activeFlowParticipantsState = callCenter.activeFlowParticipants(in: conversationId).filter{$0 != selfUserID}
-        // TODO Sabine : Revert changes
-//        callParticipantState = callCenter.activeParticipants(in: conversationId).filter{$0 != selfUserID}
-        callParticipantState = activeFlowParticipantsState
-        // End TODO Sabine
+        let allMembers = members ?? callCenter.activeFlowParticipants(in: conversationId)
+        (callParticipantState, activeFlowParticipantsState) = type(of:self).sort(participants: allMembers, selfUserID: selfUserID)
         state = SetSnapshot(set: NSOrderedSet(array: callParticipantState), moveType: .uiCollectionView)
         notifyInitialChange()
     }
@@ -157,30 +154,40 @@ class VoiceChannelParticipantV3Snapshot {
         VoiceChannelParticipantNotification(setChangeInfo: changeInfo, conversationId: conversationId).post()
     }
     
-    /// participants who have an updated flow, but are still in the voiceChannel
-    func activeFlowParticipantsChanged(newParticipants: [UUID]) {
-        let filteredNew = newParticipants.filter{$0 != selfUserID}
-        if activeFlowParticipantsState == filteredNew { return }
-        
-        let newConnected =  filteredNew.filter{!activeFlowParticipantsState.contains($0)}
-        let newDisconnected = activeFlowParticipantsState.filter{!filteredNew.contains($0)}
-        
-        activeFlowParticipantsState = filteredNew
-        recalculateSet(updated: newConnected + newDisconnected)
+    private static func sort(participants : [CallMember], selfUserID: UUID) -> (all: [UUID], connected: [UUID]) {
+        var connected = [UUID]()
+        let all : [UUID] = participants.flatMap{
+            guard $0.remoteId != selfUserID else { return nil }
+            if $0.audioEstablished {
+                connected.append($0.remoteId)
+            }
+            return $0.remoteId
+        }
+        return (all, connected)
     }
     
-    /// participants who left or joined the voiceChannel / call
-    func callParticipantsChanged(newParticipants: [UUID]) {
-        let filteredNew = newParticipants.filter{$0 != selfUserID}
-        if callParticipantState == filteredNew { return }
+    func callParticipantsChanged(newParticipants: [CallMember]) {
+        let (newCallParticipants, newFlowParticipants) = type(of:self).sort(participants: newParticipants, selfUserID: selfUserID)
+        if activeFlowParticipantsState == newFlowParticipants && callParticipantState == newCallParticipants { return }
         
-        callParticipantState = filteredNew
-        recalculateSet(updated: [])
+        /// participants who have an updated flow, but are still in the voiceChannel
+        let newConnected =  newFlowParticipants.filter{!activeFlowParticipantsState.contains($0)}
+        let newDisconnected = activeFlowParticipantsState.filter{!newFlowParticipants.contains($0)}
+        
+        /// participants who joined or left the voiceChannel
+        let added = newCallParticipants.filter{!callParticipantState.contains($0)}
+        let removed = callParticipantState.filter{!newCallParticipants.contains($0)}
+
+        activeFlowParticipantsState = newFlowParticipants
+        callParticipantState = newCallParticipants
+
+        let updated = Set(newConnected + newDisconnected).subtracting(added).subtracting(removed)
+        recalculateSet(updated: updated)
     }
     
     /// calculate inserts / deletes / moves
-    func recalculateSet(updated: [UUID]) {
-        guard let newStateUpdate = state.updatedState(NSOrderedSet(array: updated),
+    func recalculateSet(updated: Set<UUID>) {
+        guard let newStateUpdate = state.updatedState(NSOrderedSet(set: updated),
                                                       observedObject: conversationId as NSUUID,
                                                       newSet: NSOrderedSet(array: callParticipantState))
         else { return}

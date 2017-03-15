@@ -37,7 +37,14 @@ public class VoiceChannelV3 : NSObject, CallProperties {
     
     /// Voice channel participants. May be a subset of conversation participants.
     public var participants: NSOrderedSet {
-        return conversation?.activeParticipants ?? NSOrderedSet()
+        guard let callCenter = WireCallCenterV3.activeInstance,
+              let conversationId = conversation?.remoteIdentifier,
+              let context = conversation?.managedObjectContext
+        else { return NSOrderedSet() }
+        
+        let userIds = callCenter.callParticipants(conversationId: conversationId)
+        let users = userIds.flatMap{ ZMUser(remoteID: $0, createIfNeeded: false, in:context) }
+        return NSOrderedSet(array: users)
     }
     
     init(conversation: ZMConversation) {
@@ -64,7 +71,9 @@ public class VoiceChannelV3 : NSObject, CallProperties {
     
     public var state: VoiceChannelV2State {
         if let conversation = conversation, let remoteIdentifier = conversation.remoteIdentifier, let callCenter = WireCallCenterV3.activeInstance {
-            return callCenter.callState(conversationId:remoteIdentifier).voiceChannelState(securityLevel: conversation.securityLevel)
+            let callState = callCenter.callState(conversationId:remoteIdentifier)
+            print(callState) // TODO Sabine
+            return callState.voiceChannelState(securityLevel: conversation.securityLevel)
         } else {
             return .noActiveUsers
         }
@@ -145,6 +154,8 @@ public extension CallState {
             return .noActiveUsers
         case .incoming where securityLevel == .secureWithIgnored:
             return .incomingCallDegraded
+        case .incoming(video:_, shouldRing: let shouldRing) where shouldRing == false:
+            return .incomingCallInactive
         case .incoming:
             return .incomingCall
         case .answered where securityLevel == .secureWithIgnored:
