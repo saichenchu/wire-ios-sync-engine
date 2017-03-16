@@ -72,7 +72,6 @@ public class VoiceChannelV3 : NSObject, CallProperties {
     public var state: VoiceChannelV2State {
         if let conversation = conversation, let remoteIdentifier = conversation.remoteIdentifier, let callCenter = WireCallCenterV3.activeInstance {
             let callState = callCenter.callState(conversationId:remoteIdentifier)
-            print(callState) // TODO Sabine
             return callState.voiceChannelState(securityLevel: conversation.securityLevel)
         } else {
             return .noActiveUsers
@@ -104,7 +103,7 @@ extension VoiceChannelV3 : CallActionsInternal {
         var joined = false
         
         switch state {
-        case .incomingCall:
+        case .incomingCall, .incomingCallInactive:
             joined = WireCallCenterV3.activeInstance?.answerCall(conversationId: remoteIdentifier, isGroup: isGroup) ?? false
         case .incomingCallDegraded:
             joined = true // Don't answer call
