@@ -359,6 +359,7 @@
 		CEE02E461DDA0F4D00BA2BE2 /* avs.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CE5DC1A01DDA09F000D24DBA /* avs.framework */; };
 		CEF2DE7F1DB778F300451642 /* RequestLoopAnalyticsTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEF2DE7E1DB778F300451642 /* RequestLoopAnalyticsTracker.swift */; };
 		F905C47F1E79A86A00AF34A5 /* WireCallCenterV3Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F905C47E1E79A86A00AF34A5 /* WireCallCenterV3Tests.swift */; };
+		F90EC5A31E7BF1AC00A6779E /* AVSWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F90EC5A21E7BF1AC00A6779E /* AVSWrapper.swift */; };
 		F920F4D61DA3DCF8002B860B /* ConversationTests+Ephemeral.swift in Sources */ = {isa = PBXBuildFile; fileRef = F920F4D51DA3DCF8002B860B /* ConversationTests+Ephemeral.swift */; };
 		F9245BED1CBF95A8009D1E85 /* ZMHotFixDirectory+Swift.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9245BEC1CBF95A8009D1E85 /* ZMHotFixDirectory+Swift.swift */; };
 		F925468B1C62882500CE2D7C /* ZMCallStateTranscoderTests+VideoCalling.m in Sources */ = {isa = PBXBuildFile; fileRef = F925468A1C62882500CE2D7C /* ZMCallStateTranscoderTests+VideoCalling.m */; };
@@ -987,6 +988,7 @@
 		CEE02EA71DDDC49300BA2BE2 /* WireMessageStrategy.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WireMessageStrategy.framework; path = "../wire-ios-message-strategy/build/Debug-iphoneos/WireMessageStrategy.framework"; sourceTree = "<group>"; };
 		CEF2DE7E1DB778F300451642 /* RequestLoopAnalyticsTracker.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RequestLoopAnalyticsTracker.swift; sourceTree = "<group>"; };
 		F905C47E1E79A86A00AF34A5 /* WireCallCenterV3Tests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WireCallCenterV3Tests.swift; sourceTree = "<group>"; };
+		F90EC5A21E7BF1AC00A6779E /* AVSWrapper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AVSWrapper.swift; sourceTree = "<group>"; };
 		F91CA6AC1BECBD3F000EE5C2 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = Base; path = Base.lproj/Push.strings; sourceTree = "<group>"; };
 		F91CA6AD1BECBD46000EE5C2 /* Base */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = Base; path = Base.lproj/Push.stringsdict; sourceTree = "<group>"; };
 		F91CA6AE1BECBD51000EE5C2 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Push.strings; sourceTree = "<group>"; };
@@ -2170,6 +2172,7 @@
 			children = (
 				166A8BF21E015F3B00F5EEEA /* WireCallCenterV3Factory.swift */,
 				165D3A141E1D3EF30052E654 /* WireCallCenterV3.swift */,
+				F90EC5A21E7BF1AC00A6779E /* AVSWrapper.swift */,
 				F9E577201E77EC6D0065EFE4 /* WireCallCenterV3+Notifications.swift */,
 			);
 			name = "Calling V3";
@@ -2728,6 +2731,7 @@
 				1659114D1DEF1DA3007FA847 /* ZMLocalNotificationForCallState.swift in Sources */,
 				5478A1411DEC4048006F7268 /* UserProfile.swift in Sources */,
 				F98EDCD71D82B913001E65CB /* ZMLocalNotificationContentType.swift in Sources */,
+				F90EC5A31E7BF1AC00A6779E /* AVSWrapper.swift in Sources */,
 				87DC8A101C57979B00B7B4F2 /* ZMOnDemandFlowManager.m in Sources */,
 				16F5F16C1E4092C00062F0AE /* NSManagedObjectContext+CTCallCenter.swift in Sources */,
 				549816421A432BC800A7CE2E /* ZMDownloadLastUpdateEventIDState.m in Sources */,

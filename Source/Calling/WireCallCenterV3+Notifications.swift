@@ -1,9 +1,19 @@
 //
-//  WireCallCenterV3+Notifications.swift
-//  zmessaging-cocoa
+// Wire
+// Copyright (C) 2016 Wire Swiss GmbH
 //
-//  Created by Sabine Geithner on 14/03/17.
-//  Copyright © 2017 Zeta Project Gmbh. All rights reserved.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see http://www.gnu.org/licenses/.
 //
 
 import Foundation
@@ -58,7 +68,7 @@ public protocol WireCallCenterMissedCallObserver : class {
     func callCenterMissedCall(conversationId: UUID, userId: UUID, timestamp: Date, video: Bool)
 }
 
-struct WireCallCenterMissedCallNotification : SelfPostingNotification {
+public struct WireCallCenterMissedCallNotification : SelfPostingNotification {
     static let notificationName = Notification.Name("WireCallCenterNotification")
     
     let conversationId : UUID
@@ -131,10 +141,13 @@ class VoiceChannelParticipantV3Snapshot {
     
     fileprivate let conversationId : UUID
     fileprivate let selfUserID : UUID
+    let initiator : UUID
     
-    init(conversationId: UUID, selfUserID: UUID, members: [CallMember]?) {
+    init(conversationId: UUID, selfUserID: UUID, members: [CallMember]?, initiator: UUID? = nil) {
         self.conversationId = conversationId
         self.selfUserID = selfUserID
+        self.initiator = initiator ?? selfUserID
+        
         guard let callCenter = WireCallCenterV3.activeInstance else {
             fatal("WireCallCenterV3 not accessible")
         }
@@ -195,5 +208,16 @@ class VoiceChannelParticipantV3Snapshot {
         state = newStateUpdate.newSnapshot
         VoiceChannelParticipantNotification(setChangeInfo: newStateUpdate.changeInfo, conversationId: conversationId).post()
         
+    }
+    
+    public func connectionState(forUserWith userId: UUID) -> VoiceChannelV2ConnectionState {
+        let isJoined = callParticipantState.contains(userId)
+        let isFlowActive = activeFlowParticipantsState.contains(userId)
+        
+        switch (isJoined, isFlowActive) {
+        case (false, _):    return .notConnected
+        case (true, true):  return .connected
+        case (true, false): return .connecting
+        }
     }
 }

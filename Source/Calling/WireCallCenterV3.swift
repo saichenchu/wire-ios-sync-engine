@@ -19,30 +19,6 @@
 import Foundation
 import avs
 
-private extension String {
-    
-    init?(cString: UnsafePointer<Int8>?) {
-        if let cString = cString {
-            self.init(cString: cString)
-        } else {
-            return nil
-        }
-    }
-    
-}
-
-private extension UUID {
-    
-    init?(uuidString: String?) {
-        guard let uuidString = uuidString else { return nil }
-        self.init(uuidString: uuidString)
-    }
-    
-    init?(cString: UnsafePointer<Int8>?) {
-        guard let aString = String(cString: cString) else { return nil }
-        self.init(uuidString: aString)
-    }
-}
 
 private class Box<T : Any> {
     var value : T
@@ -117,8 +93,6 @@ public enum CallState : Equatable {
             fallthrough
         case (.outgoing, .outgoing):
             fallthrough
-        case (.incoming, .incoming):
-            fallthrough
         case (.answered, .answered):
             fallthrough
         case (.established, .established):
@@ -127,6 +101,8 @@ public enum CallState : Equatable {
             fallthrough
         case (.unknown, .unknown):
             return true
+        case (.incoming(video: let lVideo, shouldRing: let lShouldRing), .incoming(video: let rVideo, shouldRing: let rShouldRing)):
+            return lVideo == rVideo && lShouldRing == rShouldRing
         default:
             return false
         }
@@ -198,6 +174,136 @@ public struct CallMember {
 }
 
 
+private extension String {
+    
+    init?(cString: UnsafePointer<Int8>?) {
+        if let cString = cString {
+            self.init(cString: cString)
+        } else {
+            return nil
+        }
+    }
+    
+}
+
+public extension UUID {
+    
+    init?(cString: UnsafePointer<Int8>?) {
+        guard let aString = String(cString: cString) else { return nil }
+        self.init(uuidString: aString)
+    }
+}
+
+
+/// MARK - C convention functions
+
+/// Handles incoming calls
+/// In order to be passed to C, this function needs to be global
+public func IncomingCallHandler(conversationId: UnsafePointer<Int8>?, userId: UnsafePointer<Int8>?, isVideoCall: Int32, shouldRing: Int32, contextRef: UnsafeMutableRawPointer?)
+{
+    guard let contextRef = contextRef, let convID = UUID(cString: conversationId), let userID = UUID(cString: userId) else { return }
+    let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
+    // TODO Sabine: Fix shouldRing
+    callCenter.handleCallState(callState: .incoming(video: isVideoCall != 0, shouldRing: true), conversationId: convID, userId: userID)
+}
+
+/// Handles missed calls
+/// In order to be passed to C, this function needs to be global
+public func MissedCallHandler(conversationId: UnsafePointer<Int8>?, messageTime: UInt32, userId: UnsafePointer<Int8>?, isVideoCall: Int32, contextRef: UnsafeMutableRawPointer?)
+{
+    guard let contextRef = contextRef, let convID = UUID(cString: conversationId), let userID = UUID(cString: userId) else { return }
+    let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
+    callCenter.missed(conversationId: convID,
+                      userId: userID,
+                      timestamp: Date(timeIntervalSince1970: TimeInterval(messageTime)),
+                      isVideoCall: (isVideoCall != 0))
+}
+
+/// Handles answered calls
+/// In order to be passed to C, this function needs to be global
+public func AnsweredCallHandler(conversationId: UnsafePointer<Int8>?, contextRef: UnsafeMutableRawPointer?){
+    guard let contextRef = contextRef, let convID = UUID(cString: conversationId) else { return }
+    let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
+    callCenter.handleCallState(callState: .answered, conversationId: convID, userId: nil)
+}
+
+/// Handles established calls
+/// In order to be passed to C, this function needs to be global
+public func EstablishedCallHandler(conversationId: UnsafePointer<Int8>?, userId: UnsafePointer<Int8>?,contextRef: UnsafeMutableRawPointer?)
+{
+    guard let contextRef = contextRef, let convID = UUID(cString: conversationId), let userID = UUID(cString: userId) else { return }
+    if wcall_is_video_call(convID.transportString()) == 1 {
+        wcall_set_video_send_active(userID.transportString(), 1)
+    }
+    let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
+    callCenter.handleCallState(callState: .established, conversationId: convID, userId: userID)
+}
+
+/// Handles ended calls
+/// In order to be passed to C, this function needs to be global
+public func ClosedCallHandler(reason:Int32, conversationId: UnsafePointer<Int8>?, userId: UnsafePointer<Int8>?, metrics:UnsafePointer<Int8>?, contextRef: UnsafeMutableRawPointer?)
+{
+    guard let contextRef = contextRef, let convID = UUID(cString: conversationId) else { return }
+    let userID = UUID(cString: userId)
+    
+    let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
+    callCenter.handleCallState(callState: .terminating(reason: CallClosedReason(reason: reason)), conversationId: convID, userId: userID)
+    callCenter.clearSnapshot(conversationId: convID)
+}
+
+/// Handles sending call messages
+/// In order to be passed to C, this function needs to be global
+public func SendCallHandler(token: UnsafeMutableRawPointer?, conversationId: UnsafePointer<Int8>?, userId: UnsafePointer<Int8>?, clientId: UnsafePointer<Int8>?, data: UnsafePointer<UInt8>?, dataLength: Int, contextRef: UnsafeMutableRawPointer?) -> Int32
+{
+    guard let token = token, let contextRef = contextRef, let conversationId = UUID(cString: conversationId), let userId = UUID(cString: userId), let clientId = String(cString: clientId), let data = data else {
+        return EINVAL // invalid argument
+    }
+    
+    let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
+    return callCenter.send(token: token,
+                           conversationId: conversationId,
+                           userId: userId,
+                           clientId: clientId,
+                           data: data,
+                           dataLength: dataLength)
+}
+
+/// Sets the calling protocol when AVS is ready
+/// In order to be passed to C, this function needs to be global
+public func ReadyHandler(version: Int32, contextRef: UnsafeMutableRawPointer?)
+{
+    guard let contextRef = contextRef else { return }
+    
+    if let callingProtocol = CallingProtocol(rawValue: Int(version)) {
+        let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
+        callCenter.callingProtocol = callingProtocol
+    } else {
+        zmLog.error("wcall initialized with unknown protocol version: \(version)")
+    }
+}
+
+/// Handles other users joining / leaving / connecting
+/// In order to be passed to C, this function needs to be global
+public func GroupMemberHandler(conversationIdRef: UnsafePointer<Int8>?, callMembersRef: UnsafeMutablePointer<wcall_members>?, contextRef: UnsafeMutableRawPointer?)
+{
+    guard let contextRef = contextRef, let convID = UUID(cString: conversationIdRef) else { return }
+    
+    var members = [CallMember]()
+    if let callMembers = callMembersRef?.pointee {
+        for i in 0..<callMembers.membc {
+            guard let cMember = callMembers.membv?[Int(i)],
+                let member = CallMember(wcallMember: cMember)
+                else { continue }
+            members.append(member)
+        }
+    }
+    
+    let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
+    callCenter.callParticipantsChanged(conversationId: convID, participants: members)
+}
+
+
+
 /// MARK - Call center transport
 
 @objc
@@ -206,114 +312,6 @@ public protocol WireCallCenterTransport: class {
 }
 
 private typealias WireCallMessageToken = UnsafeMutableRawPointer
-
-
-/// MARK - C convention functions
-
-    /// Handles incoming calls
-    /// In order to be passed to C, this function needs to be global
-    func IncomingCallHandler(conversationId: UnsafePointer<Int8>?, userId: UnsafePointer<Int8>?, isVideoCall: Int32, shouldRing: Int32, contextRef: UnsafeMutableRawPointer?)
-    {
-        guard let contextRef = contextRef, let convID = UUID(cString: conversationId), let userID = UUID(cString: userId) else { return }
-        let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
-        // TODO Sabine: Fix shouldRing
-        callCenter.handleCallState(callState: .incoming(video: isVideoCall != 0, shouldRing: true), conversationId: convID, userId: userID)
-    }
-
-    /// Handles missed calls
-    /// In order to be passed to C, this function needs to be global
-    private func MissedCallHandler(conversationId: UnsafePointer<Int8>?, messageTime: UInt32, userId: UnsafePointer<Int8>?, isVideoCall: Int32, contextRef: UnsafeMutableRawPointer?)
-    {
-        guard let contextRef = contextRef, let convID = UUID(cString: conversationId), let userID = UUID(cString: userId) else { return }
-        let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
-        callCenter.missed(conversationId: convID,
-                          userId: userID,
-                          timestamp: Date(timeIntervalSince1970: TimeInterval(messageTime)),
-                          isVideoCall: (isVideoCall != 0))
-    }
-
-    /// Handles answered calls
-    /// In order to be passed to C, this function needs to be global
-    private func AnsweredCallHandler(conversationId: UnsafePointer<Int8>?, contextRef: UnsafeMutableRawPointer?){
-        guard let contextRef = contextRef, let convID = UUID(cString: conversationId) else { return }
-        let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
-        callCenter.handleCallState(callState: .answered, conversationId: convID, userId: nil)
-    }
-
-    /// Handles established calls
-    /// In order to be passed to C, this function needs to be global
-    private func EstablishedCallHandler(conversationId: UnsafePointer<Int8>?, userId: UnsafePointer<Int8>?,contextRef: UnsafeMutableRawPointer?)
-    {
-        guard let contextRef = contextRef, let convID = UUID(cString: conversationId), let userID = UUID(cString: userId) else { return }
-        if wcall_is_video_call(convID.transportString()) == 1 {
-            wcall_set_video_send_active(userID.transportString(), 1)
-        }
-        let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
-        callCenter.handleCallState(callState: .established, conversationId: convID, userId: userID)
-    }
-
-    /// Handles ended calls
-    /// In order to be passed to C, this function needs to be global
-    private func ClosedCallHandler(reason:Int32, conversationId: UnsafePointer<Int8>?, userId: UnsafePointer<Int8>?, metrics:UnsafePointer<Int8>?, contextRef: UnsafeMutableRawPointer?)
-    {
-        guard let contextRef = contextRef, let convID = UUID(cString: conversationId) else { return }
-        let userID = UUID(cString: userId)
-        
-        let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
-        callCenter.handleCallState(callState: .terminating(reason: CallClosedReason(reason: reason)), conversationId: convID, userId: userID)
-        callCenter.clearSnapshot(conversationId: convID)
-    }
-
-    /// Handles sending call messages
-    /// In order to be passed to C, this function needs to be global
-    private func SendCallHandler(token: UnsafeMutableRawPointer?, conversationId: UnsafePointer<Int8>?, userId: UnsafePointer<Int8>?, clientId: UnsafePointer<Int8>?, data: UnsafePointer<UInt8>?, dataLength: Int, contextRef: UnsafeMutableRawPointer?) -> Int32
-    {
-        guard let token = token, let contextRef = contextRef, let conversationId = UUID(cString: conversationId), let userId = UUID(cString: userId), let clientId = String(cString: clientId), let data = data else {
-            return EINVAL // invalid argument
-        }
-        
-        let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
-        return callCenter.send(token: token,
-                               conversationId: conversationId,
-                               userId: userId,
-                               clientId: clientId,
-                               data: data,
-                               dataLength: dataLength)
-    }
-
-    /// Sets the calling protocol when AVS is ready
-    /// In order to be passed to C, this function needs to be global
-    private func ReadyHandler(version: Int32, contextRef: UnsafeMutableRawPointer?)
-    {
-        guard let contextRef = contextRef else { return }
-        
-        if let callingProtocol = CallingProtocol(rawValue: Int(version)) {
-            let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
-            callCenter.callingProtocol = callingProtocol
-        } else {
-            zmLog.error("wcall initialized with unknown protocol version: \(version)")
-        }
-    }
-
-    /// Handles other users joining / leaving / connecting
-    /// In order to be passed to C, this function needs to be global
-    private func ActiveFlowParticipantsHandler(conversationIdRef: UnsafePointer<Int8>?, callMembersRef: UnsafeMutablePointer<wcall_members>?, contextRef: UnsafeMutableRawPointer?)
-    {
-        guard let contextRef = contextRef, let convID = UUID(cString: conversationIdRef) else { return }
-        
-        var members = [CallMember]()
-        if let callMembers = callMembersRef?.pointee {
-            for i in 0..<callMembers.membc {
-                guard let cMember = callMembers.membv?[Int(i)],
-                      let member = CallMember(wcallMember: cMember)
-                else { continue }
-                members.append(member)
-            }
-        }
-        
-        let callCenter = Unmanaged<WireCallCenterV3>.fromOpaque(contextRef).takeUnretainedValue()
-        callCenter.callParticipantsChanged(conversationId: convID, participants: members)
-    }
 
 
 
@@ -351,11 +349,13 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
         participantSnapshots.removeValue(forKey: conversationId)
     }
     
+    var avsWrapper : AVSWrapperType!
+    
     deinit {
-        wcall_close()
+        avsWrapper.close()
     }
     
-    public required init(userId: UUID, clientId: String, registerObservers : Bool = true) {
+    public required init(userId: UUID, clientId: String, avsWrapper: AVSWrapperType? = nil) {
         self.selfUserId = userId
         super.init()
         
@@ -364,35 +364,7 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
         }
         
         let observer = Unmanaged.passUnretained(self).toOpaque()
-
-        if (registerObservers) {
-            
-            let resultValue = wcall_init(
-                userId.transportString(),
-                clientId,
-                ReadyHandler,
-                SendCallHandler,
-                IncomingCallHandler,
-                MissedCallHandler,
-                AnsweredCallHandler,
-                EstablishedCallHandler,
-                ClosedCallHandler,
-                observer)
-            
-            if resultValue != 0 {
-                fatal("Failed to initialise WireCallCenter")
-            }
-            
-            wcall_set_video_state_handler({ (state, _) in
-                guard let state = ReceivedVideoState(rawValue: UInt(state)) else { return }
-                
-                DispatchQueue.main.async {
-                    WireCallCenterV3VideoNotification(receivedVideoState: state).post()
-                }
-            })
-            
-            wcall_set_group_changed_handler(ActiveFlowParticipantsHandler, observer)
-        }
+        self.avsWrapper = avsWrapper ?? AVSWrapper(userId: userId, clientId: clientId, observer: observer)
         
         WireCallCenterV3.activeInstance = self
     }
@@ -420,17 +392,22 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
                 self.establishedDate = Date()
             }
         case .incoming(video: _, shouldRing: let shouldRing):
-            if !shouldRing {
-                ignoredConversations.insert(conversationId)
-            } else {
-                ignoredConversations.remove(conversationId)
-                participantSnapshots[conversationId] = VoiceChannelParticipantV3Snapshot(conversationId: conversationId,
-                                                                                         selfUserID: selfUserId,
-                                                                                         members: [CallMember(userId: userId!)])
-            }
+            updatedSnapshotsForIncomingCall(conversationId: conversationId, userId: userId!, shouldRing: shouldRing)
             callState.postNotificationOnMain(conversationID: conversationId, userID: userId)
         default:
             callState.postNotificationOnMain(conversationID: conversationId, userID: userId)
+        }
+    }
+    
+    fileprivate func updatedSnapshotsForIncomingCall(conversationId: UUID, userId: UUID, shouldRing: Bool) {
+        if !shouldRing {
+            ignoredConversations.insert(conversationId)
+        } else {
+            ignoredConversations.remove(conversationId)
+            participantSnapshots[conversationId] = VoiceChannelParticipantV3Snapshot(conversationId: conversationId,
+                                                                                     selfUserID: selfUserId,
+                                                                                     members: [CallMember(userId: userId)],
+                                                                                     initiator: userId)
         }
     }
     
@@ -443,12 +420,7 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
     }
     
     public func received(data: Data, currentTimestamp: Date, serverTimestamp: Date, conversationId: UUID, userId: UUID, clientId: String) {
-        data.withUnsafeBytes { (bytes: UnsafePointer<UInt8>) in
-            let currentTime = UInt32(currentTimestamp.timeIntervalSince1970)
-            let serverTime = UInt32(serverTimestamp.timeIntervalSince1970)
-            
-            wcall_recv_msg(bytes, data.count, currentTime, serverTime, conversationId.transportString(), userId.transportString(), clientId)
-        }
+        avsWrapper.received(data: data, currentTimestamp: currentTimestamp, serverTimestamp: serverTimestamp, conversationId: conversationId, userId: userId, clientId: clientId)
     }
 
 
@@ -459,7 +431,7 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
     public func answerCall(conversationId: UUID, isGroup: Bool) -> Bool {
         ignoredConversations.remove(conversationId)
         
-        let answered = wcall_answer(conversationId.transportString(), isGroup ? 1 : 0) == 0
+        let answered = avsWrapper.answerCall(conversationId: conversationId, isGroup: isGroup)
         if answered {
             WireCallCenterCallStateNotification(callState: .answered, conversationId: conversationId, userId: self.selfUserId).post()
         }
@@ -470,7 +442,7 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
     public func startCall(conversationId: UUID, video: Bool, isGroup: Bool) -> Bool {
         clearSnapshot(conversationId: conversationId) // make sure we don't have an old state for this conversation
         
-        let started = wcall_start(conversationId.transportString(), video ? 1 : 0, (isGroup ? 1 : 0)) == 0
+        let started = avsWrapper.startCall(conversationId: conversationId, video: video, isGroup: isGroup)
         if started {
             WireCallCenterCallStateNotification(callState: .outgoing, conversationId: conversationId, userId: selfUserId).post()
         }
@@ -479,28 +451,35 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
     
     @objc(closeCallForConversationID:isGroup:)
     public func closeCall(conversationId: UUID, isGroup: Bool) {
-        wcall_end(conversationId.transportString(), isGroup ? 1 : 0)
+        avsWrapper.endCall(conversationId: conversationId, isGroup: isGroup)
+        
         if isGroup {
             ignoredConversations.insert(conversationId)
-            WireCallCenterCallStateNotification(callState: .incoming(video: false, shouldRing: false), conversationId: conversationId, userId: selfUserId).post()
+            WireCallCenterCallStateNotification(callState: .incoming(video: false, shouldRing: false),
+                                                conversationId: conversationId,
+                                                userId: initiatorForCall(conversationId: conversationId) ?? selfUserId).post()
         }
     }
     
     @objc(rejectCallForConversationID:isGroup:)
     public func rejectCall(conversationId: UUID, isGroup: Bool) {
-        wcall_reject(conversationId.transportString(), isGroup ? 1 : 0)
+        avsWrapper.rejectCall(conversationId: conversationId, isGroup: isGroup)
         ignoredConversations.insert(conversationId)
 
         if isGroup {
-            WireCallCenterCallStateNotification(callState: .incoming(video: false, shouldRing: false), conversationId: conversationId, userId: selfUserId).post()
+            WireCallCenterCallStateNotification(callState: .incoming(video: false, shouldRing: false),
+                                                conversationId: conversationId,
+                                                userId: initiatorForCall(conversationId: conversationId) ?? selfUserId).post()
         } else {
-            WireCallCenterCallStateNotification(callState: .terminating(reason: .canceled), conversationId: conversationId, userId: selfUserId).post()
+            WireCallCenterCallStateNotification(callState: .terminating(reason: .canceled),
+                                                conversationId: conversationId,
+                                                userId: initiatorForCall(conversationId: conversationId) ?? selfUserId).post()
         }
     }
     
     @objc(toogleVideoForConversationID:isActive:)
     public func toogleVideo(conversationID: UUID, active: Bool) {
-        wcall_set_video_send_active(conversationID.transportString(), active ? 1 : 0)
+        avsWrapper.toggleVideo(conversationID: conversationID, active: active)
     }
     
     @objc(isVideoCallForConversationID:)
@@ -530,29 +509,28 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
     /// Gets the current callState from AVS
     /// If the group call was ignored or left, it return .incoming where shouldRing is set to false
     public func callState(conversationId: UUID) -> CallState {
-        let callState = CallState(wcallState: wcall_get_state(conversationId.transportString()))
+        let callState = avsWrapper.getCallState(conversationId: conversationId)
         let isIgnored = ignoredConversations.contains(conversationId)
         switch callState {
-        case .incoming where isIgnored == true:
-            return .incoming(video: false, shouldRing: false)
+        case .incoming(video: let video, shouldRing: _) where isIgnored == true:
+            return .incoming(video: video, shouldRing: false)
         case .established where isIgnored == true:
             return .incoming(video: false, shouldRing: false)
         default:
             return callState
         }
     }
-
     
 
     // MARK - WireCallCenterV3 - Call Participants
 
     /// Returns the callParticipants currently in the conversation
     func callParticipants(conversationId: UUID) -> [UUID] {
-        if let snapshot = participantSnapshots[conversationId] {
-            return snapshot.callParticipantState
-        } else {
-            return []
-        }
+        return participantSnapshots[conversationId]?.callParticipantState ?? []
+    }
+    
+    func initiatorForCall(conversationId: UUID) -> UUID? {
+        return participantSnapshots[conversationId]?.initiator
     }
     
     /// Call this method when the callParticipants changed and avs calls the handler `wcall_group_changed_h`
@@ -589,14 +567,6 @@ private typealias WireCallMessageToken = UnsafeMutableRawPointer
     /// If the user is only contained in the callParticipants, he is connecting
     /// Otherwise he is notConnected
     public func connectionState(forUserWith userId: UUID, in conversationId: UUID) -> VoiceChannelV2ConnectionState {
-        guard let snapshot = participantSnapshots[conversationId] else { return .invalid }
-        let isJoined = snapshot.callParticipantState.contains(userId)
-        let isFlowActive = snapshot.activeFlowParticipantsState.contains(userId)
-
-        switch (isJoined, isFlowActive) {
-        case (false, _):    return .notConnected
-        case (true, true):  return .connected
-        case (true, false): return .connecting
-        }
+        return participantSnapshots[conversationId]?.connectionState(forUserWith:userId) ?? .invalid
     }
 }
